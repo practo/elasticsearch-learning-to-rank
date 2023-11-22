@@ -22,6 +22,7 @@ import com.o19s.es.ltr.ranker.normalizer.Normalizer;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -84,8 +85,8 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
     }
 
     public interface Node extends Accountable {
-         boolean isLeaf();
-         float eval(float[] scores);
+        boolean isLeaf();
+        float eval(float[] scores);
     }
 
     public static class Split implements Node {
@@ -93,13 +94,28 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
         private final Node left;
         private final Node right;
         private final int feature;
-        private final float threshold;
+
+        private Float numericalThreshold;
+
+        private List<Integer> categoricalThreshold;
+
+        private boolean isCategoricalSplit = false;
+
+        public Split(Node left, Node right, int feature, List<Integer> threshold) {
+            assert threshold.isEmpty();
+            this.left = Objects.requireNonNull(left);
+            this.right = Objects.requireNonNull(right);
+            this.feature = feature;
+            this.categoricalThreshold = threshold;
+            this.isCategoricalSplit = true;
+        }
 
         public Split(Node left, Node right, int feature, float threshold) {
             this.left = Objects.requireNonNull(left);
             this.right = Objects.requireNonNull(right);
             this.feature = feature;
-            this.threshold = threshold;
+            this.numericalThreshold = threshold;
+            this.isCategoricalSplit = false;
         }
 
         @Override
@@ -113,11 +129,21 @@ public class NaiveAdditiveDecisionTree extends DenseLtrRanker implements Account
             while (!n.isLeaf()) {
                 assert n instanceof Split;
                 Split s = (Split) n;
-                if (s.threshold > scores[s.feature]) {
-                    n = s.left;
+
+                if (s.isCategoricalSplit) {
+                    if (s.categoricalThreshold.contains((int) scores[s.feature])) {
+                        n = s.left;
+                    } else {
+                        n = s.right;
+                    }
                 } else {
-                    n = s.right;
+                    if (s.numericalThreshold > scores[s.feature]) {
+                        n = s.left;
+                    } else {
+                        n = s.right;
+                    }
                 }
+
             }
             assert n instanceof Leaf;
             return n.eval(scores);

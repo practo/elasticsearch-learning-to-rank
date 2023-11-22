@@ -27,6 +27,7 @@ import com.o19s.es.ltr.ranker.normalizer.Normalizers;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.util.LuceneTestCase;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.TestUtil;
 import org.apache.logging.log4j.LogManager;
 
@@ -113,9 +114,11 @@ public class NaiveAdditiveDecisionTreeTests extends LuceneTestCase {
                 100, 1000,
                 5, 50, counts);
         long actualSize = ranker.ramBytesUsed();
-        long expectedApprox = counts.splits.get() * (NUM_BYTES_OBJECT_HEADER + Float.BYTES + NUM_BYTES_OBJECT_REF * 2);
+        long expectedApprox = counts.splits.get() * (NUM_BYTES_OBJECT_HEADER + Float.BYTES +
+                RamUsageEstimator.primitiveSizes.get(boolean.class) + NUM_BYTES_ARRAY_HEADER+ NUM_BYTES_OBJECT_REF * 2);
         expectedApprox += counts.leaves.get() * (NUM_BYTES_ARRAY_HEADER + NUM_BYTES_OBJECT_HEADER + Float.BYTES);
         expectedApprox += ranker.size() * Float.BYTES + NUM_BYTES_ARRAY_HEADER;
+        LOG.info("actual size: {}", actualSize);
         assertThat(actualSize, allOf(
                 greaterThan((long) (expectedApprox*0.66F)),
                 lessThan((long) (expectedApprox*1.33F))));
@@ -253,8 +256,8 @@ public class NaiveAdditiveDecisionTreeTests extends LuceneTestCase {
             this.statsCollector = collector != null ? collector : RandomTreeGeneratorStatsCollector.NULL;
             featureGen = () -> nextInt(random(), 0, maxFeat-1);
             outputGenerator = () ->
-                (random().nextBoolean() ? 1F : -1F) *
-                        ((float)nextInt(random(), 0, 1000) / (float)nextInt(random(), 1, 1000));
+                    (random().nextBoolean() ? 1F : -1F) *
+                            ((float)nextInt(random(), 0, 1000) / (float)nextInt(random(), 1, 1000));
             thresholdGenerator = (feat) ->
                     (random().nextBoolean() ? 1F : -1F) *
                             ((float)nextInt(random(), 0, 1000) / (float)nextInt(random(), 1, 1000));

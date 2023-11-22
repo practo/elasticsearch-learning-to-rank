@@ -118,7 +118,6 @@ public class NaiveAdditiveDecisionTreeTests extends LuceneTestCase {
                 RamUsageEstimator.primitiveSizes.get(boolean.class) + NUM_BYTES_ARRAY_HEADER+ NUM_BYTES_OBJECT_REF * 2);
         expectedApprox += counts.leaves.get() * (NUM_BYTES_ARRAY_HEADER + NUM_BYTES_OBJECT_HEADER + Float.BYTES);
         expectedApprox += ranker.size() * Float.BYTES + NUM_BYTES_ARRAY_HEADER;
-        LOG.info("actual size: {}", actualSize);
         assertThat(actualSize, allOf(
                 greaterThan((long) (expectedApprox*0.66F)),
                 lessThan((long) (expectedApprox*1.33F))));

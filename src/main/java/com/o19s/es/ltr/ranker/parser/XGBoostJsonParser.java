@@ -21,11 +21,11 @@ import com.o19s.es.ltr.ranker.dectree.NaiveAdditiveDecisionTree;
 import com.o19s.es.ltr.ranker.dectree.NaiveAdditiveDecisionTree.Node;
 import com.o19s.es.ltr.ranker.normalizer.Normalizer;
 import com.o19s.es.ltr.ranker.normalizer.Normalizers;
-import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ObjectParser;
+import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParseException;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.json.JsonXContent;
@@ -158,24 +158,9 @@ public class XGBoostJsonParser implements LtrRankerParser {
             PARSER.declareInt(SplitParserState::setLeftNodeId, new ParseField("yes"));
             PARSER.declareInt(SplitParserState::setMissingNodeId, new ParseField("missing"));
             PARSER.declareFloat(SplitParserState::setLeaf, new ParseField("leaf"));
-            PARSER.declareField((parser, splitParserState, context) -> {
-                XContentParser.Token token = parser.currentToken();
-
-                if (token == null) {
-                    token = parser.nextToken();
-                }
-
-                if (token == XContentParser.Token.START_ARRAY) {
-                    splitParserState.setCategoricalThreshold(
-                            parser.list()
-                                    .stream()
-                                    .map(p -> (Integer) p)
-                                    .collect(Collectors.toList())
-                    );
-                } else {
-                    splitParserState.setNumericalThreshold(parser.floatValue());
-                }
-            }, new ParseField("split_condition"), ObjectParser.ValueType.VALUE_OBJECT_ARRAY);
+            PARSER.declareField(new SplitConditionParser(),
+                    new ParseField("split_condition"),
+                    ObjectParser.ValueType.VALUE_OBJECT_ARRAY);
 
             PARSER.declareObjectArray(SplitParserState::setChildren, SplitParserState::parse,
                     new ParseField("children"));
@@ -195,6 +180,31 @@ public class XGBoostJsonParser implements LtrRankerParser {
         private Integer missingNodeId;
         private Float leaf;
         private List<SplitParserState> children;
+
+        /**
+         * class for split condition parsing
+         */
+        public static class SplitConditionParser implements ObjectParser.Parser<SplitParserState, FeatureSet> {
+                @Override
+                public void parse(XContentParser parser, SplitParserState splitParserState, FeatureSet context) throws IOException {
+                    XContentParser.Token token = parser.currentToken();
+
+                    if (token == null) {
+                        token = parser.nextToken();
+                    }
+
+                    if (token == XContentParser.Token.START_ARRAY) {
+                        splitParserState.setCategoricalThreshold(
+                                parser.list()
+                                        .stream()
+                                        .map(p -> (Integer) p)
+                                        .collect(Collectors.toList())
+                        );
+                    } else {
+                        splitParserState.setNumericalThreshold(parser.floatValue());
+                    }
+                }
+        }
 
         public static SplitParserState parse(XContentParser parser, FeatureSet set) {
             SplitParserState split = PARSER.apply(parser, set);
